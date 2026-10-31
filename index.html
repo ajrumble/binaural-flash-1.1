@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1220">
+<title>Binaural Flash</title>
+<style>
+  :root{
+    --bg:#0f1220; --panel:#171b2e; --panel2:#1f2440; --text:#e8eaf6; --muted:#9aa0c3;
+    --accent:#7c9cff; --accent2:#a78bfa; --warn:#ffb74d; --danger:#ff6b6b; --radius:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-tap-highlight-color:transparent}
+  body{min-height:100dvh;display:flex;justify-content:center;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+  main{width:100%;max-width:560px;padding:20px 16px 40px}
+  header{display:flex;align-items:center;gap:12px;margin:6px 0 18px}
+  .logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(90deg,#fff 50%,#000 50%);box-shadow:0 0 0 2px var(--panel2)}
+  h1{font-size:1.35rem;margin:0}
+  header p{margin:0;color:var(--muted);font-size:.9rem}
+  .card{background:var(--panel);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+  .note{display:flex;gap:10px;align-items:center;background:var(--panel2);border-radius:12px;padding:10px 12px;font-size:.92rem;color:var(--muted)}
+  .note b{color:var(--text)}
+  .row{margin:14px 0}
+  .row:first-child{margin-top:0}
+  .lbl{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;font-size:.95rem}
+  .lbl output{font-variant-numeric:tabular-nums;color:var(--accent);font-weight:600}
+  input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+  .presets{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .presets button{background:var(--panel2);color:var(--text);border:1px solid transparent;border-radius:12px;padding:8px 4px;font:inherit;font-size:.85rem;cursor:pointer;line-height:1.2}
+  .presets button small{display:block;color:var(--muted);font-size:.75rem}
+  .presets button.active{border-color:var(--accent);background:#263060}
+  .toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0}
+  .switch{position:relative;width:50px;height:30px;flex:none}
+  .switch input{opacity:0;width:100%;height:100%;margin:0;position:absolute;cursor:pointer;z-index:1}
+  .switch span{position:absolute;top:0;right:0;bottom:0;left:0;background:#3a4066;border-radius:30px;transition:.2s}
+  .switch span::after{content:"";position:absolute;width:24px;height:24px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+  .switch input:checked+span{background:var(--accent)}
+  .switch input:checked+span::after{transform:translateX(20px)}
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .btn{border:0;border-radius:14px;padding:14px;font:inherit;font-weight:650;cursor:pointer;color:#0b0e1a;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+  .btn.secondary{background:var(--panel2);color:var(--text)}
+  .btn.stop{background:var(--danger);color:#fff}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .stats{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:.85rem;color:var(--muted)}
+  .stats b{color:var(--text);font-variant-numeric:tabular-nums}
+  .warnline{color:var(--warn);font-size:.85rem;margin-top:8px}
+  .hidden{display:none!important}
+  .swatch{display:inline-flex;gap:0;border-radius:6px;overflow:hidden;vertical-align:middle;border:1px solid #3a4066}
+  .swatch i{width:16px;height:16px;display:block}
+  .viewer-msg{background:#3a2a10;border:1px solid #6b4d1a;color:#ffe0b2;border-radius:12px;padding:10px 12px;font-size:.9rem;margin:12px 0}
+  .flashme{animation:flashme .5s ease 2}
+  @keyframes flashme{50%{box-shadow:0 0 0 3px var(--warn);background:#3a2a10}}
+  #warning label{border-radius:10px;padding:6px}
+  footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:10px}
+
+  /* Warning */
+  #warning{position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:rgba(8,10,20,.96);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px}
+  #warning .box{max-width:480px;margin:0 auto;background:var(--panel);border:1px solid #4a3a1a;border-radius:var(--radius);padding:22px}
+  #warning h2{margin:0 0 10px;color:var(--warn);font-size:1.25rem}
+  #warning ul{padding-left:20px;margin:10px 0;color:var(--muted);font-size:.93rem}
+  #warning label{display:flex;gap:10px;align-items:flex-start;margin:14px 0;font-size:.95rem;cursor:pointer}
+  #warning input{width:20px;height:20px;accent-color:var(--accent);flex:none;margin-top:2px}
+  #warning .actions{margin-top:6px}
+
+  /* Visual */
+  #visual{position:fixed;top:0;right:0;bottom:0;left:0;z-index:40;background:#000;cursor:pointer;touch-action:manipulation}
+  #visual .hint{position:absolute;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);
+    background:rgba(20,20,30,.75);color:#fff;padding:8px 14px;border-radius:999px;font-size:.85rem;pointer-events:none;transition:opacity .6s;white-space:nowrap}
+  html{touch-action:manipulation;-webkit-text-size-adjust:100%}
+  .slider{display:flex;align-items:center}
+  .slider input[type=range]{flex:1;min-width:0;margin:0 10px}
+  .step{width:44px;height:44px;flex:none;border:0;border-radius:12px;background:var(--panel2);color:var(--text);
+    font:600 1.5rem/1 system-ui,-apple-system,sans-serif;cursor:pointer;touch-action:manipulation;
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;display:flex;align-items:center;justify-content:center;padding:0}
+  .step:active,.step.pressed{background:#2c3466;box-shadow:0 0 0 2px var(--accent) inset}
+  .presets.amb{grid-template-columns:repeat(5,1fr)}
+  .presets button{min-height:48px;touch-action:manipulation}
+  .remaining{font-size:2rem;font-weight:700;font-variant-numeric:tabular-nums;text-align:center;margin:0 0 10px;color:var(--text)}
+  .done{color:#8be39b;font-size:.9rem;text-align:center;margin:8px 0 0}
+  #visual .timer{position:absolute;top:calc(10px + env(safe-area-inset-top));right:14px;font:600 .9rem system-ui,sans-serif;
+    color:rgba(128,128,128,.9);font-variant-numeric:tabular-nums;pointer-events:none}
+</style>
+</head>
+<body>
+<main id="app">
+  <header>
+    <div class="logo" aria-hidden="true"></div>
+    <div>
+      <h1>Binaural Flash</h1>
+      <p>Binaural beats with a synced black/white flash</p>
+    </div>
+  </header>
+
+  <div class="card note" role="note">🎧 <span><b>Use headphones.</b> Binaural beats only work when each ear hears its own tone. <span id="iosNote" class="hidden">On iPhone, if there’s no sound, turn off Silent mode.</span></span></div>
+
+  <section class="card">
+    <div class="row">
+      <div class="lbl"><span>Preset</span></div>
+      <div class="presets" id="presets">
+        <button type="button" data-beat="2">Delta<small>2 Hz</small></button>
+        <button type="button" data-beat="6">Theta<small>6 Hz</small></button>
+        <button type="button" data-beat="10">Alpha<small>10 Hz</small></button>
+        <button type="button" data-beat="18">Beta<small>18 Hz</small></button>
+        <button type="button" data-beat="40">Gamma<small>40 Hz</small></button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="lbl"><label for="beat">Beat frequency</label><output id="beatOut"></output></div>
+      <div class="slider">
+        <button type="button" class="step" data-for="beat" data-dir="-1" aria-label="Decrease beat frequency">−</button>
+        <input type="range" id="beat" min="0.5" max="40" step="0.5" value="10">
+        <button type="button" class="step" data-for="beat" data-dir="1" aria-label="Increase beat frequency">+</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="lbl"><label for="carrier">Carrier frequency</label><output id="carrierOut"></output></div>
+      <div class="slider">
+        <button type="button" class="step" data-for="carrier" data-dir="-1" aria-label="Decrease carrier frequency">−</button>
+        <input type="range" id="carrier" min="30" max="150" step="1" value="100">
+        <button type="button" class="step" data-for="carrier" data-dir="1" aria-label="Increase carrier frequency">+</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="lbl"><label for="volume">Tone volume</label><output id="volumeOut"></output></div>
+      <div class="slider">
+        <button type="button" class="step" data-for="volume" data-dir="-1" aria-label="Decrease tone volume">−</button>
+        <input type="range" id="volume" min="0" max="100" step="1" value="40">
+        <button type="button" class="step" data-for="volume" data-dir="1" aria-label="Increase tone volume">+</button>
+      </div>
+    </div>
+    <div class="viewer-msg hidden" id="noAudioMsg" role="alert"><b>This viewer can't play audio.</b> Open the file in Safari or Chrome.</div>
+    <div class="stats"><span>Left ear <b id="leftHz"></b></span><span>Right ear <b id="rightHz"></b></span></div>
+    <div class="stats" id="lowNote" style="margin-top:6px;display:block">Low carriers (under ~60 Hz) are faint on phone speakers and small earbuds.</div>
+  </section>
+
+  <section class="card">
+    <div class="row">
+      <div class="lbl"><span>Ambient sound</span></div>
+      <div class="presets amb" id="ambChoices">
+        <button type="button" data-amb="off">Off<small>&nbsp;</small></button>
+        <button type="button" data-amb="brook">Brook<small>babbling</small></button>
+        <button type="button" data-amb="rain">Rain<small>&nbsp;</small></button>
+        <button type="button" data-amb="waves">Waves<small>ocean</small></button>
+        <button type="button" data-amb="brown">Brown<small>noise</small></button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="lbl"><label for="ambVol">Ambient volume</label><output id="ambVolOut"></output></div>
+      <div class="slider">
+        <button type="button" class="step" data-for="ambVol" data-dir="-1" aria-label="Decrease ambient volume">−</button>
+        <input type="range" id="ambVol" min="0" max="100" step="1" value="30">
+        <button type="button" class="step" data-for="ambVol" data-dir="1" aria-label="Increase ambient volume">+</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="toggle">
+      <div><div>Session timer</div><div class="stats">Off = play continuously</div></div>
+      <label class="switch"><input type="checkbox" id="timerOn" checked aria-label="Session timer"><span></span></label>
+    </div>
+    <div class="row">
+      <div class="lbl"><label for="timer">Duration</label><output id="timerOut"></output></div>
+      <div class="slider">
+        <button type="button" class="step" data-for="timer" data-dir="-1" aria-label="Decrease duration">−</button>
+        <input type="range" id="timer" min="1" max="60" step="1" value="20">
+        <button type="button" class="step" data-for="timer" data-dir="1" aria-label="Increase duration">+</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="toggle">
+      <div><div>Flashing visual</div><div class="stats">Turn off for audio only</div></div>
+      <label class="switch"><input type="checkbox" id="flashOn" checked aria-label="Flashing visual"><span></span></label>
+    </div>
+    <div class="row">
+      <div class="lbl"><label for="intensity">Flash intensity <span class="swatch" aria-hidden="true"><i id="swW"></i><i id="swB"></i></span></label><output id="intensityOut"></output></div>
+      <div class="slider">
+        <button type="button" class="step" data-for="intensity" data-dir="-1" aria-label="Decrease flash intensity">−</button>
+        <input type="range" id="intensity" min="5" max="100" step="1" value="75">
+        <button type="button" class="step" data-for="intensity" data-dir="1" aria-label="Increase flash intensity">+</button>
+      </div>
+    </div>
+    <div class="stats">
+      <span>Display refresh <b id="refresh">measuring…</b></span>
+      <span>Flash period <b id="period"></b></span>
+    </div>
+    <div class="warnline hidden" id="refreshWarn"></div>
+  </section>
+
+  <section class="card">
+    <div class="remaining hidden" id="remaining" aria-live="off"></div>
+    <div class="actions">
+      <button type="button" class="btn" id="startBtn">Start</button>
+      <button type="button" class="btn secondary" id="fsBtn">Start fullscreen</button>
+    </div>
+    <div class="actions hidden" id="runningActions" style="grid-template-columns:1fr">
+      <button type="button" class="btn stop" id="stopBtn">Stop</button>
+    </div>
+    <div class="done hidden" id="doneMsg">✓ Session complete</div>
+    <p class="stats" style="margin:10px 0 0;display:block">Press <b>Esc</b> or tap the flashing screen to stop instantly.</p>
+  </section>
+  <footer>Not a medical device. Stop if you feel unwell.</footer>
+</main>
+
+<div id="warning" role="dialog" aria-modal="true" aria-labelledby="warnTitle">
+  <div class="box">
+    <h2 id="warnTitle">⚠️ Photosensitivity warning</h2>
+    <p>This app flashes the screen between light and dark at 0.5–40 times per second. Flashing at these rates (especially 3–30 Hz) can trigger <b>seizures in people with photosensitive epilepsy</b>, even with no prior history.</p>
+    <ul>
+      <li>Do not use the flash if you or anyone who may see the screen has epilepsy or a history of seizures.</li>
+      <li>Stop immediately if you feel dizzy, nauseous, disoriented, or notice twitching or vision changes.</li>
+      <li>Use a lower intensity, a lit room, and sit back from the screen. Don’t use it while driving.</li>
+      <li>Press <b>Esc</b> or tap the screen at any time to stop everything.</li>
+    </ul>
+    <div class="viewer-msg" id="noJsMsg"><b>Buttons not responding?</b> This preview isn’t running the app (message and file previews often block scripts and audio). Open the file in <b>Safari</b> or <b>Chrome</b> instead, e.g. Share → Open in Safari / “Open with” Chrome, or use the web link.</div>
+    <label><input type="checkbox" id="ack"> I have read this warning and understand the risks of flashing light.</label>
+    <div class="actions">
+      <button type="button" class="btn" id="ackBtn">Continue</button>
+      <button type="button" class="btn secondary" id="audioOnlyBtn">Audio only</button>
+    </div>
+  </div>
+</div>
+
+<div id="visual" class="hidden" aria-label="Flashing visual. Tap to stop."><div class="timer" id="visTimer"></div><div class="hint" id="hint">Tap or press Esc to stop</div></div>
+
+<script>
+/* Written in plain ES5 so it runs in older WebKit and in-app viewers. */
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  function safe(fn, fallback) { try { return fn(); } catch (e) { return fallback; } }
+  function on(node, type, fn, opts) { try { if (node) node.addEventListener(type, fn, opts || false); } catch (e) {} }
+  function hasClass(n, c) { return (' ' + n.className + ' ').indexOf(' ' + c + ' ') > -1; }
+  function addClass(n, c) { if (n && !hasClass(n, c)) n.className = (n.className + ' ' + c).replace(/^\s+/, ''); }
+  function removeClass(n, c) { if (n) n.className = (' ' + n.className + ' ').replace(' ' + c + ' ', ' ').replace(/^\s+|\s+$/g, ''); }
+  function toggleClass(n, c, force) { if (force) addClass(n, c); else removeClass(n, c); }
+  function isHidden(n) { return hasClass(n, 'hidden'); }
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+  function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+
+  var el = {};
+  var ids = ['beat','carrier','volume','intensity','flashOn','beatOut','carrierOut','volumeOut','intensityOut','leftHz','rightHz',
+    'refresh','period','refreshWarn','startBtn','fsBtn','stopBtn','runningActions','warning','ack','ackBtn','audioOnlyBtn',
+    'visual','hint','presets','swW','swB','noJsMsg','noAudioMsg','iosNote','ambVol','ambVolOut','ambChoices',
+    'timer','timerOut','timerOn','remaining','doneMsg','visTimer'];
+  for (var i = 0; i < ids.length; i++) el[ids[i]] = $(ids[i]);
+
+  // Script is running: hide the "this viewer isn't running the app" notice.
+  addClass(el.noJsMsg, 'hidden');
+
+  var RAMP = 0.04;      // seconds, click-free start/stop
+  var END_FADE = 5;     // seconds, fade-out when the session timer ends
+  var AMB_XFADE = 1.5;  // seconds, crossfade between ambient sounds
+  var AC = safe(function () { return window.AudioContext || window.webkitAudioContext || null; }, null);
+  var raf = safe(function () {
+    return window.requestAnimationFrame || window.webkitRequestAnimationFrame || null;
+  }, null) || function (cb) { return setTimeout(function () { cb(now()); }, 16); };
+  var caf = safe(function () { return window.cancelAnimationFrame || window.webkitCancelAnimationFrame || null; }, null) || clearTimeout;
+  function now() { return safe(function () { return performance.now(); }, null) || new Date().getTime(); }
+  function wall() { return new Date().getTime(); }
+  var isIOS = safe(function () {
+    return /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }, false);
+  if (isIOS) removeClass(el.iosNote, 'hidden');
+
+  var state = {
+    acknowledged: false, running: false, audioOK: !!AC, audioError: null,
+    ctx: null, oscL: null, oscR: null, master: null, merger: null, binGain: null, ambBus: null, analyser: null,
+    phaseRefTime: 0, phaseAcc: 0, beatAtRef: 10, phaseClock: 'audio', wallStart: 0,
+    rafId: 0, flashColor: null, flashToggles: 0, refreshHz: null,
+    ambient: 'off', amb: null, ambOld: [], buffers: null, schedId: 0,
+    sessionStartWall: 0, endWall: 0, timerOverrideSec: null, lastFinish: null
+  };
+
+  function num(x, d) { if (d === undefined) d = 1; return Number(x).toFixed(d).replace(/\.0+$/, ''); }
+  function params() {
+    return { carrier: +el.carrier.value, beat: +el.beat.value, volume: +el.volume.value / 100, intensity: +el.intensity.value / 100,
+      ambVol: +el.ambVol.value / 100, timerOn: !!el.timerOn.checked, timerMin: +el.timer.value };
+  }
+  function colors(intensity) {
+    var hi = Math.round(128 + 127 * intensity), lo = Math.round(128 - 128 * intensity);
+    return { white: 'rgb(' + hi + ',' + hi + ',' + hi + ')', black: 'rgb(' + lo + ',' + lo + ',' + lo + ')' };
+  }
+  function mmss(sec) {
+    sec = Math.max(0, Math.ceil(sec));
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function showNoAudio(reason) {
+    state.audioOK = false; state.audioError = reason || 'unavailable';
+    removeClass(el.noAudioMsg, 'hidden');
+  }
+  if (!AC) showNoAudio('no AudioContext');
+
+  function updateUI() {
+    var p = params();
+    el.beatOut.textContent = num(p.beat) + ' Hz';
+    el.carrierOut.textContent = p.carrier + ' Hz';
+    el.volumeOut.textContent = Math.round(p.volume * 100) + '%';
+    el.intensityOut.textContent = Math.round(p.intensity * 100) + '%';
+    el.ambVolOut.textContent = Math.round(p.ambVol * 100) + '%';
+    el.timerOut.textContent = p.timerOn ? p.timerMin + ' min' : 'Continuous';
+    el.timer.disabled = !p.timerOn;
+    el.leftHz.textContent = num(p.carrier) + ' Hz';
+    el.rightHz.textContent = num(p.carrier + p.beat) + ' Hz';
+    el.period.textContent = num(1000 / p.beat, 1) + ' ms';
+    var c = colors(p.intensity); el.swW.style.background = c.white; el.swB.style.background = c.black;
+    var btns = el.presets.getElementsByTagName('button');
+    for (var i = 0; i < btns.length; i++) toggleClass(btns[i], 'active', +btns[i].getAttribute('data-beat') === p.beat);
+    var ab = el.ambChoices.getElementsByTagName('button');
+    for (var j = 0; j < ab.length; j++) toggleClass(ab[j], 'active', ab[j].getAttribute('data-amb') === state.ambient);
+    updateRefreshWarn();
+  }
+
+  function updateRefreshWarn() {
+    var r = state.refreshHz, b = +el.beat.value;
+    if (r) el.refresh.textContent = num(r, 1) + ' Hz';
+    if (r && b > r / 2) {
+      el.refreshWarn.textContent = 'Note: ' + num(b) + " Hz is above half your display's refresh rate (" + num(r / 2, 1) +
+        " Hz), so the flash can't be shown accurately and may look irregular. Audio is unaffected.";
+      removeClass(el.refreshWarn, 'hidden');
+    } else if (r && b > r / 4) {
+      el.refreshWarn.textContent = 'Note: at ' + num(b) + ' Hz each flash lasts only ~' + num(r / (2 * b), 1) +
+        ' frames, so timing is quantised to your ' + num(r, 0) + ' Hz display.';
+      removeClass(el.refreshWarn, 'hidden');
+    } else addClass(el.refreshWarn, 'hidden');
+  }
+
+  // ---- Refresh-rate measurement ----
+  var frameDeltas = [], lastFrameTs = 0;
+  function measureFrame(ts) {
+    if (lastFrameTs) {
+      var d = ts - lastFrameTs;
+      if (d > 2 && d < 100) { frameDeltas.push(d); if (frameDeltas.length > 120) frameDeltas.shift(); }
+      if (frameDeltas.length >= 20 && (frameDeltas.length % 10 === 0 || !state.refreshHz)) {
+        var s = frameDeltas.slice().sort(function (a, b) { return a - b; });
+        state.refreshHz = 1000 / s[s.length >> 1]; updateRefreshWarn();
+      }
+    }
+    lastFrameTs = ts;
+  }
+  function idleLoop(ts) { try { if (!state.running) measureFrame(ts || now()); } catch (e) {} raf(idleLoop); }
+  raf(idleLoop);
+
+  // ---- Clocks / beat phase ----
+  var clk = { lastCtx: -1, lastWall: 0 };
+  function audioNow() {
+    var ctx = state.ctx;
+    if (!ctx || state.phaseClock !== 'audio') return (now() - state.wallStart) / 1000;
+    var ct = ctx.currentTime, w = now();
+    // Stall guard: if the audio clock stops advancing (suspended/blocked output), extrapolate with the wall clock.
+    if (ct !== clk.lastCtx) { clk.lastCtx = ct; clk.lastWall = w; }
+    else if (w - clk.lastWall > 250) return ct + (w - clk.lastWall) / 1000;
+    // Prefer the output timestamp, but only if it is sane (some WebKit builds report performanceTime on another time base).
+    var ts = safe(function () { return ctx.getOutputTimestamp ? ctx.getOutputTimestamp() : null; }, null);
+    if (ts && ts.contextTime > 0 && ts.performanceTime > 0) {
+      var dt = (w - ts.performanceTime) / 1000;
+      if (dt > -0.05 && dt < 0.5) {
+        var t = ts.contextTime + dt;
+        if (t <= ct + 0.05 && t > ct - 0.6) return t;
+      }
+    }
+    return ct - (ctx.baseLatency || 0) - (ctx.outputLatency || 0);
+  }
+  function clockNow() {
+    return (state.ctx && state.phaseClock === 'audio') ? state.ctx.currentTime : (now() - state.wallStart) / 1000;
+  }
+  function beatPhase() { return state.phaseAcc + (audioNow() - state.phaseRefTime) * state.beatAtRef; }
+
+  // ---- Audio context (created/resumed synchronously inside the tap; iOS only unlocks audio there) ----
+  function ensureAudioContext() {
+    if (!AC) return null;
+    try {
+      if (!state.ctx) {
+        try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {} // iOS 16.4+: ignore silent switch
+        try { state.ctx = new AC({ latencyHint: 'interactive' }); } catch (e) { state.ctx = new AC(); }
+      }
+      var ctx = state.ctx;
+      if (ctx.state !== 'running' && ctx.resume) {
+        try { var pr = ctx.resume(); if (pr && pr['catch']) pr['catch'](function () {}); } catch (e) {}
+      }
+      try {
+        var buf = ctx.createBuffer(1, 1, 22050), src = ctx.createBufferSource();
+        src.buffer = buf; src.connect(ctx.destination);
+        if (src.start) src.start(0); else if (src.noteOn) src.noteOn(0);
+      } catch (e) {}
+      return ctx;
+    } catch (e) {
+      showNoAudio(String(e && e.message || e));
+      return null;
+    }
+  }
+  function gainNode(ctx, v) { var g = ctx.createGain ? ctx.createGain() : ctx.createGainNode(); g.gain.value = v; return g; }
+  function startNode(n, t, off) { if (n.start) { if (off !== undefined) n.start(t, off); else n.start(t); } else n.noteOn(t); }
+  function stopNode(n, t) { try { if (n.stop) n.stop(t); else n.noteOff(t); } catch (e) {} }
+  function rampTo(param, v, t, dur) {
+    try {
+      param.cancelScheduledValues(t);
+      param.setValueAtTime(param.value, t);
+      param.linearRampToValueAtTime(v, t + dur);
+    } catch (e) { param.value = v; }
+  }
+  function biquad(ctx, type, f, q) { var b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; if (q !== undefined) b.Q.value = q; return b; }
+  function panner(ctx, pan) {
+    if (!ctx.createStereoPanner) return null;
+    var p = ctx.createStereoPanner(); p.pan.value = pan; return p;
+  }
+
+  // ---- Procedural ambient sounds ----
+  // Long stereo noise buffers whose ends are equal-power crossfaded into their starts, so the loop point is seamless.
+  function makeNoise(ctx, seconds, brown) {
+    var sr = ctx.sampleRate, xf = Math.floor(sr * 0.5), n = Math.floor(sr * seconds);
+    var out = ctx.createBuffer(2, n - xf, sr);
+    for (var ch = 0; ch < 2; ch++) {
+      var d = new Float32Array(n), b = 0, i, peak = 0;
+      for (i = 0; i < n; i++) {
+        var w = Math.random() * 2 - 1;
+        if (brown) { b = (b + 0.02 * w) / 1.02; d[i] = b; } else d[i] = w;
+      }
+      if (brown) { // remove DC drift, normalise
+        var mean = 0; for (i = 0; i < n; i++) mean += d[i]; mean /= n;
+        for (i = 0; i < n; i++) { d[i] -= mean; var a = Math.abs(d[i]); if (a > peak) peak = a; }
+        for (i = 0; i < n; i++) d[i] = d[i] / peak * 0.9;
+      }
+      var o = out.getChannelData(ch), L = n - xf;
+      for (i = 0; i < L; i++) o[i] = d[i];
+      for (i = 0; i < xf; i++) { var k = i / xf; o[i] = d[i] * Math.sqrt(k) + d[L + i] * Math.sqrt(1 - k); }
+    }
+    return out;
+  }
+  function buffers(ctx) {
+    if (!state.buffers || state.buffers.ctx !== ctx) {
+      state.buffers = { ctx: ctx, white: makeNoise(ctx, 11.3, false), brown: makeNoise(ctx, 17.7, true) };
+    }
+    return state.buffers;
+  }
+  function loopSrc(ctx, buf, t) {
+    var s = ctx.createBufferSource(); s.buffer = buf; s.loop = true;
+    startNode(s, t, Math.random() * (buf.duration - 0.1));
+    return s;
+  }
+
+  // Each generator returns { out, sources, tick(t0, t1) } and is mixed through its own fade gain.
+  var AMBIENTS = {
+    brown: function (ctx, t, out) {
+      var B = buffers(ctx), s = loopSrc(ctx, B.brown, t);
+      var lp = biquad(ctx, 'lowpass', 900, 0.5), hp = biquad(ctx, 'highpass', 25, 0.7), g = gainNode(ctx, 0.65);
+      s.connect(hp); hp.connect(lp); lp.connect(g); g.connect(out);
+      return { sources: [s], tick: null };
+    },
+    rain: function (ctx, t, out) {
+      var B = buffers(ctx);
+      var hiss = loopSrc(ctx, B.white, t), hhp = biquad(ctx, 'highpass', 900, 0.5), hlp = biquad(ctx, 'lowpass', 7500, 0.5), hg = gainNode(ctx, 0.22);
+      hiss.connect(hhp); hhp.connect(hlp); hlp.connect(hg); hg.connect(out);
+      var body = loopSrc(ctx, B.brown, t), bhp = biquad(ctx, 'highpass', 180, 0.7), blp = biquad(ctx, 'lowpass', 2500, 0.5), bg = gainNode(ctx, 0.7);
+      body.connect(bhp); bhp.connect(blp); blp.connect(bg); bg.connect(out);
+      var dropBus = gainNode(ctx, 1); dropBus.connect(out);
+      var next = t;
+      function tick(t0, t1) {
+        if (next < t0) next = t0;
+        while (next < t1) {
+          var dur = rnd(0.012, 0.05), f = Math.exp(rnd(Math.log(1800), Math.log(6500)));
+          var src = ctx.createBufferSource(); src.buffer = B.white;
+          var bp = biquad(ctx, 'bandpass', f, rnd(1.5, 5)), env = gainNode(ctx, 0), pn = panner(ctx, rnd(-0.8, 0.8));
+          src.connect(bp); bp.connect(env);
+          if (pn) { env.connect(pn); pn.connect(dropBus); } else env.connect(dropBus);
+          var peak = Math.random() < 0.15 ? rnd(0.5, 1.0) : rnd(0.1, 0.4);
+          env.gain.setValueAtTime(0, next);
+          env.gain.linearRampToValueAtTime(peak, next + 0.002);
+          env.gain.exponentialRampToValueAtTime(0.0005, next + dur);
+          startNode(src, next, Math.random() * 10);
+          stopNode(src, next + dur + 0.02);
+          next += -Math.log(1 - Math.random()) / 28; // Poisson, ~28 drops/s
+        }
+      }
+      return { sources: [hiss, body], tick: tick };
+    },
+    waves: function (ctx, t, out) {
+      var B = buffers(ctx);
+      var w = loopSrc(ctx, B.white, t), br = loopSrc(ctx, B.brown, t);
+      var wg = gainNode(ctx, 0.25), bg = gainNode(ctx, 1.0);
+      var lp = biquad(ctx, 'lowpass', 400, 0.6), amp = gainNode(ctx, 0.2), g = gainNode(ctx, 1.7);
+      w.connect(wg); br.connect(bg); wg.connect(lp); bg.connect(lp); lp.connect(amp); amp.connect(g); g.connect(out);
+      amp.gain.setValueAtTime(0.2, t); lp.frequency.setValueAtTime(350, t);
+      var next = t;
+      function tick(t0, t1) {
+        if (next < t0) next = t0;
+        while (next < t1 + 0.5) {
+          // One wave: swell (~40%), break/crest, long wash back. 8–12 s each, randomised.
+          var dur = rnd(8, 12), rise = dur * rnd(0.35, 0.45), crest = rnd(0.6, 1.0), trough = rnd(0.12, 0.25);
+          var fPeak = rnd(1300, 2600), fLow = rnd(260, 420);
+          amp.gain.linearRampToValueAtTime(crest, next + rise);
+          amp.gain.linearRampToValueAtTime(crest * 0.55, next + rise + dur * 0.15);
+          amp.gain.linearRampToValueAtTime(trough, next + dur);
+          lp.frequency.exponentialRampToValueAtTime(fPeak, next + rise);
+          lp.frequency.exponentialRampToValueAtTime(fPeak * 0.6, next + rise + dur * 0.15);
+          lp.frequency.exponentialRampToValueAtTime(fLow, next + dur);
+          next += dur;
+        }
+      }
+      return { sources: [w, br], tick: tick };
+    },
+    brook: function (ctx, t, out) {
+      var B = buffers(ctx);
+      var base = loopSrc(ctx, B.white, t), bbp = biquad(ctx, 'bandpass', 1400, 0.6), bg = gainNode(ctx, 0.12);
+      base.connect(bbp); bbp.connect(bg); bg.connect(out);
+      var low = loopSrc(ctx, B.brown, t), llp = biquad(ctx, 'lowpass', 450, 0.7), lg = gainNode(ctx, 0.35);
+      low.connect(llp); llp.connect(lg); lg.connect(out);
+      var src2 = loopSrc(ctx, B.white, t), voices = [];
+      for (var v = 0; v < 6; v++) {
+        var bp = biquad(ctx, 'bandpass', rnd(400, 2000), rnd(8, 16)), g = gainNode(ctx, 0), pn = panner(ctx, rnd(-0.5, 0.5));
+        src2.connect(bp); bp.connect(g);
+        if (pn) { g.connect(pn); pn.connect(out); } else g.connect(out);
+        voices.push({ bp: bp, g: g, next: t + rnd(0, 0.2) });
+      }
+      function tick(t0, t1) {
+        for (var i = 0; i < voices.length; i++) {
+          var vo = voices[i];
+          if (vo.next < t0) vo.next = t0;
+          while (vo.next < t1) {
+            // Gurgle: resonant peak glides to a new pitch with a short burst of level.
+            var f = Math.exp(rnd(Math.log(350), Math.log(2400)));
+            var lvl = Math.random() < 0.35 ? rnd(0.5, 1.1) : rnd(0, 0.25);
+            vo.bp.frequency.setTargetAtTime(f, vo.next, rnd(0.02, 0.07));
+            vo.g.gain.setTargetAtTime(lvl, vo.next, rnd(0.015, 0.05));
+            vo.next += rnd(0.05, 0.18);
+          }
+        }
+      }
+      return { sources: [base, low, src2], tick: tick };
+    }
+  };
+
+  function startAmbient(type, fadeIn) {
+    var ctx = state.ctx; if (!ctx || !state.ambBus) return;
+    var t = ctx.currentTime + 0.02;
+    if (state.amb) { retireAmbient(state.amb, fadeIn); state.amb = null; }
+    if (!AMBIENTS[type]) return;
+    try {
+      var fade = gainNode(ctx, 0); fade.connect(state.ambBus);
+      var g = AMBIENTS[type](ctx, t, fade);
+      g.type = type; g.fade = fade;
+      fade.gain.setValueAtTime(0, t);
+      fade.gain.linearRampToValueAtTime(1, t + fadeIn);
+      if (g.tick) g.tick(t, t + 0.5);
+      state.amb = g;
+    } catch (e) { state.amb = null; }
+  }
+  function retireAmbient(a, fadeOut) {
+    var ctx = state.ctx, t = ctx.currentTime;
+    a.tick = null;
+    rampTo(a.fade.gain, 0, t, fadeOut);
+    for (var i = 0; i < a.sources.length; i++) stopNode(a.sources[i], t + fadeOut + 0.05);
+    state.ambOld.push(a);
+    setTimeout(function () {
+      try { a.fade.disconnect(); } catch (e) {}
+      var k = state.ambOld.indexOf(a); if (k > -1) state.ambOld.splice(k, 1);
+    }, (fadeOut + 0.3) * 1000);
+  }
+  function setAmbient(type) {
+    state.ambient = type;
+    updateUI();
+    if (state.running && state.ctx && state.ambBus) startAmbient(type, AMB_XFADE);
+  }
+  function ambLevel(v) { return Math.pow(v, 1.5) * 1.6; } // gentle perceptual curve
+
+  // ---- Session timer (timestamp based; the audio fade is also pre-scheduled on the audio clock) ----
+  function timerLengthSec() { return state.timerOverrideSec != null ? state.timerOverrideSec : +el.timer.value * 60; }
+  function remainingSec() { return (state.endWall - wall()) / 1000; }
+  function scheduleSessionGain() {
+    if (!state.master || !state.ctx) return;
+    var ctx = state.ctx, g = state.master.gain, t = ctx.currentTime;
+    try {
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(g.value, t);
+      g.linearRampToValueAtTime(1, t + RAMP);
+      if (el.timerOn.checked) {
+        var tEnd = Math.max(t + RAMP, t + remainingSec());
+        g.setValueAtTime(1, tEnd);
+        g.linearRampToValueAtTime(0, tEnd + END_FADE);
+      }
+    } catch (e) {}
+  }
+  function updateRemaining() {
+    if (!state.running) return;
+    if (el.timerOn.checked) {
+      var r = remainingSec();
+      el.remaining.textContent = mmss(r);
+      el.visTimer.textContent = mmss(r);
+      if (r <= 0) finishSession();
+    } else {
+      el.remaining.textContent = '∞ Continuous';
+      el.visTimer.textContent = '';
+    }
+  }
+  function finishSession() {
+    state.lastFinish = { at: wall(), fade: END_FADE };
+    stop(END_FADE);
+    removeClass(el.doneMsg, 'hidden');
+  }
+  function schedulerTick() {
+    if (!state.running) return;
+    try {
+      if (state.amb && state.amb.tick && state.ctx) { var t = state.ctx.currentTime; state.amb.tick(t, t + 0.6); }
+    } catch (e) {}
+    updateRemaining();
+  }
+
+  // ---- Binaural graph ----
+  function buildGraph(ctx, p) {
+    var master = gainNode(ctx, 0);              // session fades (start/stop/timer end)
+    var binGain = gainNode(ctx, p.volume * 0.5); // tone volume
+    var ambBus = gainNode(ctx, ambLevel(p.ambVol));
+    var analyser = safe(function () { var a = ctx.createAnalyser(); a.fftSize = 2048; return a; }, null);
+    var merger = ctx.createChannelMerger(2);
+    var oscL = ctx.createOscillator(), oscR = ctx.createOscillator();
+    oscL.type = 'sine'; oscR.type = 'sine';
+    oscL.frequency.value = p.carrier; oscR.frequency.value = p.carrier + p.beat;
+    oscL.connect(merger, 0, 0);   // left channel only
+    oscR.connect(merger, 0, 1);   // right channel only
+    merger.connect(binGain); binGain.connect(master);
+    if (analyser) { ambBus.connect(analyser); analyser.connect(master); } else ambBus.connect(master);
+    master.connect(ctx.destination);
+    var t0 = ctx.currentTime + 0.03;
+    startNode(oscL, t0); startNode(oscR, t0);
+    master.gain.setValueAtTime(0, t0);
+    master.gain.linearRampToValueAtTime(1, t0 + RAMP);
+    return { oscL: oscL, oscR: oscR, master: master, merger: merger, binGain: binGain, ambBus: ambBus, analyser: analyser, t0: t0 };
+  }
+
+  function requestFs(node) {
+    try {
+      var f = node.requestFullscreen || node.webkitRequestFullscreen || node.webkitRequestFullScreen || node.msRequestFullscreen;
+      if (f) { var r = f.call(node); if (r && r['catch']) r['catch'](function () {}); }
+    } catch (e) {}
+  }
+  function exitFs() {
+    try {
+      var fe = document.fullscreenElement || document.webkitFullscreenElement;
+      if (!fe) return;
+      var f = document.exitFullscreen || document.webkitExitFullscreen || document.webkitCancelFullScreen;
+      if (f) { var r = f.call(document); if (r && r['catch']) r['catch'](function () {}); }
+    } catch (e) {}
+  }
+
+  function start(fullscreen) {
+    if (state.running) return;
+    var p = params();
+    var flash = el.flashOn.checked;
+    if (flash && !state.acknowledged) { showWarning(); return; }
+    if (fullscreen && flash) requestFs(el.visual);
+
+    var ctx = ensureAudioContext();
+    var g = null;
+    if (ctx) {
+      try { g = buildGraph(ctx, p); } catch (e) { showNoAudio(String(e && e.message || e)); g = null; }
+    }
+    if (!g && !flash) { return; } // nothing to do: audio impossible and flash is off (message is shown)
+
+    state.oscL = g ? g.oscL : null; state.oscR = g ? g.oscR : null;
+    state.master = g ? g.master : null; state.merger = g ? g.merger : null;
+    state.binGain = g ? g.binGain : null; state.ambBus = g ? g.ambBus : null; state.analyser = g ? g.analyser : null;
+    state.phaseClock = g ? 'audio' : 'wall';
+    state.wallStart = now();
+    state.phaseRefTime = g ? g.t0 : 0; state.phaseAcc = 0; state.beatAtRef = p.beat;
+    state.flashToggles = 0; state.flashColor = null; state.running = true;
+    state.sessionStartWall = wall(); state.endWall = state.sessionStartWall + timerLengthSec() * 1000;
+    addClass(el.doneMsg, 'hidden');
+    if (g && state.ambient !== 'off') startAmbient(state.ambient, 0.8);
+    scheduleSessionGain();
+    state.schedId = setInterval(schedulerTick, 100);
+    setRunningUI(true);
+    updateRemaining();
+    if (flash) showVisual();
+    state.rafId = raf(frame);
+  }
+
+  // stop(fadeSec): flash stops immediately; audio fades over fadeSec (default: instant, click-free).
+  function stop(fadeSec) {
+    if (!state.running) return;
+    var fade = (typeof fadeSec === 'number' && fadeSec > RAMP) ? fadeSec : RAMP;
+    state.running = false;
+    try { caf(state.rafId); } catch (e) {}
+    try { clearInterval(state.schedId); } catch (e) {}
+    hideVisual();
+    exitFs();
+    var ctx = state.ctx, oscL = state.oscL, oscR = state.oscR, master = state.master;
+    if (ctx && master) {
+      try {
+        var t = ctx.currentTime;
+        rampTo(master.gain, 0, t, fade);
+        stopNode(oscL, t + fade + 0.05); stopNode(oscR, t + fade + 0.05);
+        if (state.amb) { var a = state.amb; a.tick = null; for (var i = 0; i < a.sources.length; i++) stopNode(a.sources[i], t + fade + 0.05); }
+        setTimeout(function () { try { master.disconnect(); } catch (e) {} }, (fade + 0.3) * 1000);
+      } catch (e) { try { master.disconnect(); } catch (e2) {} }
+    }
+    state.amb = null;
+    state.oscL = state.oscR = state.master = state.merger = state.binGain = state.ambBus = state.analyser = null;
+    state.timerOverrideSec = null;
+    setRunningUI(false);
+  }
+
+  function applyParams() {
+    updateUI();
+    if (!state.running) return;
+    var p = params();
+    if (p.beat !== state.beatAtRef) {
+      var t = clockNow();
+      state.phaseAcc += (t - state.phaseRefTime) * state.beatAtRef;
+      state.phaseRefTime = t; state.beatAtRef = p.beat;
+    }
+    if (state.ctx && state.oscL) {
+      try {
+        var tc = state.ctx.currentTime;
+        state.oscL.frequency.setValueAtTime(p.carrier, tc);
+        state.oscR.frequency.setValueAtTime(p.carrier + p.beat, tc);
+        rampTo(state.binGain.gain, p.volume * 0.5, tc, RAMP);
+        rampTo(state.ambBus.gain, ambLevel(p.ambVol), tc, 0.08);
+      } catch (e) {}
+    }
+  }
+  function onTimerChange() {
+    updateUI();
+    if (!state.running) return;
+    state.timerOverrideSec = null;
+    state.endWall = state.sessionStartWall + timerLengthSec() * 1000; // duration counts from the session start
+    scheduleSessionGain();
+    updateRemaining();
+  }
+
+  // ---- Visual ----
+  function frame(ts) {
+    if (!state.running) return;
+    try {
+      measureFrame(ts || now());
+      if (el.flashOn.checked && !isHidden(el.visual)) {
+        var ph = beatPhase();
+        var frac = ph - Math.floor(ph);
+        var isWhite = frac < 0.25 || frac >= 0.75; // 50% duty, white centred on the loud part of the beat
+        var c = colors(+el.intensity.value / 100);
+        var col = isWhite ? 'white' : 'black';
+        if (col !== state.flashColor) { state.flashColor = col; state.flashToggles++; }
+        el.visual.style.backgroundColor = isWhite ? c.white : c.black;
+      }
+    } catch (e) {}
+    state.rafId = raf(frame);
+  }
+  var hintTimer;
+  function showVisual() {
+    removeClass(el.visual, 'hidden');
+    el.hint.style.opacity = 1; clearTimeout(hintTimer);
+    hintTimer = setTimeout(function () { el.hint.style.opacity = 0; }, 3000);
+  }
+  function hideVisual() { addClass(el.visual, 'hidden'); el.visual.style.backgroundColor = '#000'; state.flashColor = null; }
+  function setRunningUI(running) {
+    toggleClass(el.startBtn.parentNode, 'hidden', running);
+    toggleClass(el.runningActions, 'hidden', !running);
+    toggleClass(el.remaining, 'hidden', !running);
+  }
+
+  // ---- Tap handling: click plus touchend fallback, de-duplicated ----
+  function tap(node, fn) {
+    var lastTouch = 0;
+    on(node, 'touchend', function (e) {
+      lastTouch = now();
+      try { e.preventDefault(); } catch (x) {}
+      fn(e);
+    });
+    on(node, 'click', function (e) {
+      if (lastTouch && now() - lastTouch < 800) return; // already handled by touchend
+      fn(e);
+    });
+  }
+
+  // ---- Steppers: exactly 1 unit per step, press-and-hold repeats ----
+  function stepValue(id, dir) {
+    var input = el[id]; if (!input || input.disabled) return;
+    var v = +input.value, mn = +input.min, mx = +input.max, nv;
+    if (id === 'beat') nv = dir > 0 ? Math.floor(v) + 1 : Math.ceil(v) - 1; // snap to whole Hz; 0.5 still reachable via slider
+    else nv = v + dir;
+    nv = clamp(nv, mn, mx);
+    if (nv === v) return;
+    input.value = nv;
+    if (id === 'timer') onTimerChange(); else applyParams();
+  }
+  function bindStepper(btn) {
+    var id = btn.getAttribute('data-for'), dir = +btn.getAttribute('data-dir');
+    var holdT = 0, holdI = 0, lastTouch = 0;
+    function end() { clearTimeout(holdT); clearInterval(holdI); holdT = holdI = 0; removeClass(btn, 'pressed'); }
+    function begin() {
+      end(); addClass(btn, 'pressed');
+      stepValue(id, dir);
+      holdT = setTimeout(function () { holdI = setInterval(function () { stepValue(id, dir); }, 70); }, 450);
+    }
+    on(btn, 'touchstart', function (e) { lastTouch = now(); try { e.preventDefault(); } catch (x) {} begin(); }, { passive: false });
+    on(btn, 'touchend', function (e) { lastTouch = now(); try { e.preventDefault(); } catch (x) {} end(); }, { passive: false });
+    on(btn, 'touchcancel', end);
+    on(btn, 'mousedown', function (e) {
+      if (lastTouch && now() - lastTouch < 800) return; // emulated mouse after touch
+      if (e.button !== undefined && e.button !== 0) return;
+      begin();
+    });
+    on(btn, 'mouseup', end); on(btn, 'mouseleave', end);
+    on(btn, 'click', function (e) { if (e.detail === 0) stepValue(id, dir); }); // keyboard (Enter/Space)
+    on(btn, 'contextmenu', function (e) { try { e.preventDefault(); } catch (x) {} });
+  }
+  var steps = document.querySelectorAll ? document.querySelectorAll('.step') : [];
+  for (var si = 0; si < steps.length; si++) bindStepper(steps[si]);
+  on(window, 'blur', function () { for (var k = 0; k < steps.length; k++) { var ev; try { ev = document.createEvent('Event'); ev.initEvent('mouseup', true, true); steps[k].dispatchEvent(ev); } catch (e) {} } });
+
+  // ---- Warning ----
+  function showWarning() { removeClass(el.warning, 'hidden'); }
+  function hideWarning() { addClass(el.warning, 'hidden'); }
+  function nudgeAck() {
+    var label = el.ack.parentNode;
+    removeClass(label, 'flashme'); void label.offsetWidth; addClass(label, 'flashme');
+    try { el.ack.focus(); } catch (e) {}
+  }
+  tap(el.ackBtn, function () {
+    if (!el.ack.checked) { nudgeAck(); return; }
+    state.acknowledged = true; hideWarning();
+  });
+  tap(el.audioOnlyBtn, function () { el.flashOn.checked = false; hideWarning(); });
+
+  // ---- Controls ----
+  function closestButton(target, container) {
+    var b = target;
+    while (b && b !== container && (b.tagName || '').toLowerCase() !== 'button') b = b.parentNode;
+    return (b && b !== container) ? b : null;
+  }
+  tap(el.presets, function (e) {
+    var b = closestButton(e.target, el.presets); if (!b) return;
+    el.beat.value = b.getAttribute('data-beat'); applyParams();
+  });
+  tap(el.ambChoices, function (e) {
+    var b = closestButton(e.target, el.ambChoices); if (!b) return;
+    var type = b.getAttribute('data-amb');
+    if (type !== state.ambient) setAmbient(type);
+  });
+  var sliders = ['beat', 'carrier', 'volume', 'intensity', 'ambVol'];
+  for (var k = 0; k < sliders.length; k++) { on(el[sliders[k]], 'input', applyParams); on(el[sliders[k]], 'change', applyParams); }
+  on(el.timer, 'input', onTimerChange); on(el.timer, 'change', onTimerChange);
+  on(el.timerOn, 'change', onTimerChange);
+  function onFlashToggle() {
+    if (el.flashOn.checked && !state.acknowledged) { el.flashOn.checked = false; showWarning(); return; }
+    if (state.running) { if (el.flashOn.checked) showVisual(); else hideVisual(); }
+  }
+  on(el.flashOn, 'change', onFlashToggle);
+  tap(el.startBtn, function () { start(false); });
+  tap(el.fsBtn, function () { start(true); });
+  tap(el.stopBtn, function () { stop(); });
+  // Tap anywhere on the visual stops everything instantly
+  on(el.visual, 'mousedown', function () { stop(); });
+  on(el.visual, 'touchstart', function (e) { try { e.preventDefault(); } catch (x) {} stop(); }, { passive: false });
+  on(document, 'keydown', function (e) { if (e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27) stop(); });
+  // Background tabs: the flash can't render anyway; audio keeps going where the browser allows, and the timer
+  // (timestamp based) is re-checked as soon as the page is visible again.
+  on(document, 'visibilitychange', function () { if (!document.hidden) updateRemaining(); });
+  on(window, 'pagehide', function () { stop(); });
+
+  // ---- Debug hook for testing ----
+  var api = {
+    params: params, start: start, stop: stop, beatPhase: beatPhase, stepValue: stepValue, setAmbient: setAmbient,
+    oscillators: function () {
+      var out = [], o = [state.oscL, state.oscR];
+      for (var i = 0; i < 2; i++) if (o[i]) out.push({ channel: i ? 'right' : 'left', type: o[i].type, frequency: o[i].frequency.value });
+      return out;
+    },
+    // Shorten the session for tests: applies to the next start, or to the running session (counting from now).
+    setTimerSeconds: function (sec) {
+      state.timerOverrideSec = sec;
+      if (state.running) { state.endWall = wall() + sec * 1000; scheduleSessionGain(); updateRemaining(); }
+    },
+    remaining: function () { return state.running && el.timerOn.checked ? remainingSec() : null; },
+    ambientInfo: function () {
+      return { selected: state.ambient, active: state.amb ? state.amb.type : null, sources: state.amb ? state.amb.sources.length : 0,
+        retiring: state.ambOld.length, busGain: state.ambBus ? state.ambBus.gain.value : null };
+    },
+    ambientRms: function () {
+      var a = state.analyser; if (!a) return null;
+      var d = new Float32Array(a.fftSize); a.getFloatTimeDomainData(d);
+      var s = 0; for (var i = 0; i < d.length; i++) s += d[i] * d[i];
+      return Math.sqrt(s / d.length);
+    },
+    masterGain: function () { return state.master ? state.master.gain.value : null; }
+  };
+  safe(function () {
+    Object.defineProperty(api, 'state', { get: function () { return state; } });
+    Object.defineProperty(api, 'running', { get: function () { return state.running; } });
+    Object.defineProperty(api, 'flashColor', { get: function () { return state.flashColor; } });
+    Object.defineProperty(api, 'flashToggles', { get: function () { return state.flashToggles; } });
+    Object.defineProperty(api, 'refreshHz', { get: function () { return state.refreshHz; } });
+    Object.defineProperty(api, 'ctx', { get: function () { return state.ctx; } });
+    Object.defineProperty(api, 'audioOK', { get: function () { return state.audioOK; } });
+  });
+  window.__app = api;
+
+  try { updateUI(); } catch (e) {}
+})();
+</script>
+</body>
+</html>
